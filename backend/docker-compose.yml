@@ -1,0 +1,34 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: ecommerce-db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=monolito
+      - POSTGRES_DB=ecommerce_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Para que no se borren tus datos al apagarlo
+
+  backend:
+    build:
+      context: .
+      target: builder
+    container_name: ecommerce-backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      # URL de conexión para que Express sepa dónde está la DB
+      - DATABASE_URL=postgresql://pablo:mi_password_seguro@db:5432/ecommerce_db
+    depends_on:
+      - db # Hace que la DB prenda antes que el backend
+    command: npm run dev
+
+volumes:
+  postgres_data: # Define el espacio para guardar los datos de la DB
