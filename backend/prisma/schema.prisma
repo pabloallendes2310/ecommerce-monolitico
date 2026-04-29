@@ -23,7 +23,7 @@ model User {
   @@map("users")
 }
 
-model Productos {
+model Item {
   id String @id @default(uuid())
   name String
   description String
@@ -47,8 +47,8 @@ model OrderItems {
   id String @id @default(uuid())
   order Orders @relation(fields: [orderId], references: [id])
   orderId String
-  product Productos @relation(fields: [productId],references: [id])
-  productId String
+  product Item @relation(fields: [itemId],references: [id])
+  itemId String
   quantity Int
   unitPrice Int
 
