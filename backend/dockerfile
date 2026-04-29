@@ -1,33 +1,78 @@
-# 1. Usamos una imagen ligera de Node.js
+# ==========================================
+# STAGE 1: Builder (Development)
+# ==========================================
 FROM node:20-alpine AS builder
 
-# 2. Creamos el directorio de trabajo
 WORKDIR /app
 
-# 3. Copiamos los archivos de dependencias primero 
-# (Esto ayuda a aprovechar el cache de Docker)
+# Copiar package files
 COPY package*.json ./
 
-# 4. Instalamos todas las dependencias
+# Instalar dependencias
 RUN npm install
 
-# 5. Copiamos el resto del código del proyecto
+# Copiar schema de Prisma ANTES de generar
+COPY prisma ./prisma
+
+# Generar Prisma Client
+RUN npx prisma generate
+
+# Copiar el resto del código
 COPY . .
 
-# 6. Compilamos el código (ejecuta 'tsc' via tu script de build)
+# Compilar TypeScript
 RUN npm run build
-# 7. Iniciamos una nueva etapa limpia
-FROM node:20-alpine AS runner
+
+# ==========================================
+# STAGE 2: Production (si la necesitas)
+# ==========================================
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# 8. Copiamos solo los archivos necesarios de la etapa 'builder'
+# Copiar package files
 COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/dist ./dist
 
-# 9. Instalamos SOLO dependencias de producción
+# Copiar schema de Prisma
+COPY --from=builder /app/prisma ./prisma
+
+# Instalar solo dependencias de producción
 RUN npm install --omit=dev
 
-# 10. Exponemos el puerto y ejecutamos la app
+# Generar Prisma Client en producción
+RUN npx prisma generate
+
+# Copiar código compilado
+COPY --from=builder /app/dist ./dist
+
 EXPOSE 3000
-CMD ["node", "dist/app.js"]
+
+# Ejecutar migraciones y arrancar
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/index.js"]
+
+# ==========================================
+# STAGE 3: Development (para docker-compose)
+# ==========================================
+FROM node:20-alpine AS development
+
+WORKDIR /app
+
+# Copiar package files
+COPY package*.json ./
+
+# Instalar todas las dependencias
+RUN npm install
+
+# Copiar schema de Prisma
+COPY prisma ./prisma
+
+# Generar Prisma Client
+RUN npx prisma generate
+
+# El código se monta como volumen en docker-compose
+# No necesitamos COPY . . aquí
+
+EXPOSE 3000
+
+# Este comando se sobreescribe en docker-compose.yml
+CMD ["npm", "run", "dev"]

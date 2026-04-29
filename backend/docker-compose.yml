@@ -8,24 +8,26 @@ services:
       - POSTGRES_PASSWORD=monolito
       - POSTGRES_DB=ecommerce_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data # Para que no se borren tus datos al apagarlo
 
   backend:
     build:
       context: .
-      target: builder
+      target: development
     container_name: ecommerce-backend
     ports:
       - "3000:3000"
     volumes:
       - .:/app
       - /app/node_modules
+      - /app/dist
     environment:
       - NODE_ENV=development
-      # URL de conexión para que Express sepa dónde está la DB
-      - DATABASE_URL=postgresql://pablo:mi_password_seguro@db:5432/ecommerce_db
+      - DATABASE_URL=postgresql://postgres:monolito@db:5432/ecommerce_db
+      - JWT_SECRET=tu-secreto-cambiar
+      - PORT=3000
     depends_on:
       - db # Hace que la DB prenda antes que el backend
     command: npm run dev
