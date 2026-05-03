@@ -35,7 +35,7 @@ model Orders {
   userId     Int        @map("user_id")
   state      String       @default("pending")
   createdAt DateTime     @default(now()) @map("created_at")
-  items      OrderItems[]
+  items      OrderItems[] 
   user       User         @relation(fields: [userId], references: [id])
 }
 
