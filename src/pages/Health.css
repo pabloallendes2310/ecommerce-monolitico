@@ -1,0 +1,16 @@
+.health-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: start;
+  padding: 24px;
+  background: #0b1220;
+}
+
+.health-page pre {
+  overflow: auto;
+  margin: 0;
+  color: #dbeafe;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.6;
+}
