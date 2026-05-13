@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: ecommerce-db
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=monolito
+      - POSTGRES_DB=ecommerce_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Para que no se borren tus datos al apagarlo
+
+  backend:
+    build:
+      context: .
+      target: development
+    container_name: ecommerce-backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/dist
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:monolito@db:5432/ecommerce_db
+      - JWT_SECRET=tu-secreto-cambiar
+      - PORT=3000
+    depends_on:
+      - db # Hace que la DB prenda antes que el backend
+    command: npm run dev
+
+volumes:
+  postgres_data: # Define el espacio para guardar los datos de la DB

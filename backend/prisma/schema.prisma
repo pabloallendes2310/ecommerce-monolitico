@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  password   String
+  name       String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  orders     Orders[]
+
+  @@map("users")
+}
+
+model Item {
+  id          String       @id @default(uuid())
+  name        String
+  description String
+  price      Int
+  stock       Int
+  image_url  String @map("image_url")
+  createdAt DateTime     @default(now()) @map("created_at")
+  orderItems  OrderItems[]
+}
+
+model Orders {
+  id         String       @id @default(uuid())
+  userId     Int        @map("user_id")
+  state      String       @default("pending")
+  createdAt DateTime     @default(now()) @map("created_at")
+  items      OrderItems[] 
+  user       User         @relation(fields: [userId], references: [id])
+}
+
+model OrderItems {
+  id        String @id @default(uuid())
+  orderId   String @map("order_id")
+  quantity  Int
+  unitPrice Int @map("unit_price")
+  itemId    String @map("item_id")
+  product   Item   @relation(fields: [itemId], references: [id])
+  order     Orders @relation(fields: [orderId], references: [id])
+
+  @@map("order_items")
+}
