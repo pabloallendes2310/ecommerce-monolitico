@@ -2,7 +2,7 @@
 
 Frontend de e-commerce regional para una PyME de retail que migra desde un monolito on-premise hacia una arquitectura cloud/multicloud. La aplicacion esta construida con React + Vite y queda preparada para integrarse con un backend REST mediante variables de entorno.
 
-Ya incluye Dockerfile y configuracion de nginx para servir la SPA en produccion. No incluye docker-compose, Kubernetes ni backend; eso queda para etapas posteriores.
+Ya incluye Dockerfile y configuracion de nginx para servir la SPA en produccion.
 
 ## Tecnologias
 
@@ -60,6 +60,8 @@ docker run --rm -p 8080:80 ecommerce-frontend
 
 Abre `http://localhost:8080`.
 
+Para detalles del stack completo (frontend + backend + db), usa el README de la raiz del repositorio.
+
 ### 3. Por que esta configurado asi
 
 - Vite recomienda que el dev server escuche en `0.0.0.0` cuando corre dentro de un contenedor, pero si desarrollas localmente no hace falta ajustar eso.
@@ -99,13 +101,6 @@ Si `VITE_API_URL` no existe o el backend falla, el frontend usa `mockProducts` c
 - `/checkout`: checkout simulado.
 - `/orden-confirmada`: confirmacion de orden.
 - `/health`: estado simple del frontend.
-
-## Endpoints esperados del backend
-
-- `GET /products`
-- `GET /products/:id`
-- `POST /orders`
-- `GET /health`
 
 ## Preparacion cloud
 
