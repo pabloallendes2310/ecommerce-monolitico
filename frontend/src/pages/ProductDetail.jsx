@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import Loading from '../components/Loading'
 import ProductCard from '../components/ProductCard'
 import { useCart } from '../context/useCart'
-import { mockProducts } from '../data/mockProducts'
-import { getProductById } from '../services/api'
+import { getProductById, getProducts } from '../services/api'
 import { formatCurrency } from '../utils/formatCurrency'
 import './ProductDetail.css'
 
@@ -14,6 +13,7 @@ function ProductDetail() {
   const { addToCart } = useCart()
   const [product, setProduct] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [relatedProducts, setRelatedProducts] = useState([])
 
   useEffect(() => {
     getProductById(id)
@@ -21,12 +21,11 @@ function ProductDetail() {
       .finally(() => setLoading(false))
   }, [id])
 
-  const relatedProducts = useMemo(() => {
-    if (!product) return []
-
-    return mockProducts
-      .filter((item) => item.category === product.category && item.id !== product.id)
-      .slice(0, 4)
+  useEffect(() => {
+    if (!product) return
+    getProducts().then((all) => {
+      setRelatedProducts(all.filter((item) => item.id !== product.id).slice(0, 4))
+    })
   }, [product])
 
   if (loading) {

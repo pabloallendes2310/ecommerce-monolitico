@@ -1,11 +1,17 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import ProductCard from '../components/ProductCard'
-import { categories, mockProducts } from '../data/mockProducts'
+import { categories } from '../data/mockProducts'
+import { getProducts } from '../services/api'
 import './Home.css'
 
 function Home() {
-  const featuredProducts = mockProducts.filter((product) => product.featured).slice(0, 4)
+  const [featuredProducts, setFeaturedProducts] = useState([])
+
+  useEffect(() => {
+    getProducts().then((products) => setFeaturedProducts(products.slice(0, 4)))
+  }, [])
 
   return (
     <main>

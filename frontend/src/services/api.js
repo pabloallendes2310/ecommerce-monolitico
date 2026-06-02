@@ -24,7 +24,9 @@ async function request(path, options = {}) {
 
 export async function getProducts() {
   try {
-    return await request('/products')
+    const items = await request('/items')
+    // Normalizar image_url -> imageUrl para compatibilidad con el frontend
+    return items.map((item) => ({ ...item, imageUrl: item.image_url }))
   } catch (error) {
     console.warn('Usando productos mock:', error.message)
     return mockProducts
@@ -33,7 +35,9 @@ export async function getProducts() {
 
 export async function getProductById(id) {
   try {
-    return await request(`/products/${id}`)
+    const item = await request(`/items/${id}`)
+    // Normalizar image_url -> imageUrl para compatibilidad con el frontend
+    return { ...item, imageUrl: item.image_url }
   } catch (error) {
     console.warn('Usando detalle mock:', error.message)
     return mockProducts.find((product) => product.id === id) || null
