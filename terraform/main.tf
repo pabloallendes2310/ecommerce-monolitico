@@ -49,7 +49,7 @@ resource "aws_route_table_association" "rta_backup" {
 
 resource "aws_security_group" "sg_ecommerce" {
   name        = "sg_ecommerce_permitir_web"
-  description = "Permitir trafico HTTP y SSH"
+  description = "Permitir trafico HTTP, Backend API y SSH"
   vpc_id      = aws_vpc.vpc_ecommerce.id
 
   ingress {
@@ -62,6 +62,14 @@ resource "aws_security_group" "sg_ecommerce" {
   ingress {
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Abrimos el puerto 3000 para la API del Backend
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -100,13 +108,31 @@ resource "aws_instance" "vm_aplicacion" {
   user_data = <<-EOF
               #!/bin/bash
               apt-get update -y
-              apt-get install -y docker.io docker-compose git
+              # Instalamos plugin moderno de Docker Compose V2
+              apt-get install -y docker.io docker-buildx-plugin docker-compose-plugin git curl
               systemctl start docker
               systemctl enable docker
               
               git clone https://github.com/pabloallendes2310/ecommerce-monolitico.git /home/ubuntu/ecommerce
               cd /home/ubuntu/ecommerce
-              docker-compose -f docker-compose.prod.yml up -d
+
+              # Obtener IP publica de AWS usando el token de metadatos (IMDSv2)
+              TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+              PUBLIC_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/public-ipv4)
+
+              # Crear archivo .env dinámico para sobrescribir puertos y variables
+              cat <<EOT > .env
+              POSTGRES_USER=postgres
+              POSTGRES_PASSWORD=monolito
+              POSTGRES_DB=ecommerce_db
+              FRONTEND_PORT=80
+              BACKEND_PORT=3000
+              VITE_API_URL=http://$PUBLIC_IP:3000
+              JWT_SECRET=supersecreto-produccion-123
+              EOT
+              
+              # Levantar infraestructura forzando build para inyectar variables de Vite
+              sudo docker compose -f docker-compose.prod.yml up --build -d
               EOF
 }
 
@@ -152,16 +178,33 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
   metadata_startup_script = <<-EOF
                             #!/bin/bash
                             apt-get update -y
-                            apt-get install -y docker.io docker-compose git
+                            # Instalamos plugin moderno de Docker Compose V2
+                            apt-get install -y docker.io docker-buildx-plugin docker-compose-plugin git curl
                             systemctl start docker
                             systemctl enable docker
                             
                             git clone https://github.com/pabloallendes2310/ecommerce-monolitico.git /home/ubuntu/ecommerce
                             cd /home/ubuntu/ecommerce
-                            docker-compose -f docker-compose.prod.yml up -d
+
+                            # Obtener IP publica de GCP
+                            PUBLIC_IP=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip)
+
+                            # Crear archivo .env dinámico
+                            cat <<EOT > .env
+                            POSTGRES_USER=postgres
+                            POSTGRES_PASSWORD=monolito
+                            POSTGRES_DB=ecommerce_db
+                            FRONTEND_PORT=80
+                            BACKEND_PORT=3000
+                            VITE_API_URL=http://$PUBLIC_IP:3000
+                            JWT_SECRET=supersecreto-produccion-123
+                            EOT
+                            
+                            # Levantar infraestructura forzando build
+                            sudo docker compose -f docker-compose.prod.yml up --build -d
                             EOF
 
-  tags = ["http-server", "https-server"]
+  tags = ["http-server", "https-server", "backend-api"]
 }
 
 resource "google_compute_firewall" "allow_http" {
@@ -170,9 +213,10 @@ resource "google_compute_firewall" "allow_http" {
 
   allow {
     protocol = "tcp"
-    ports    = ["80"]
+    # Abrimos puerto 80 (Frontend) y 3000 (Backend)
+    ports    = ["80", "3000"]
   }
 
   source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["http-server"]
+  target_tags   = ["http-server", "backend-api"]
 }
