@@ -105,7 +105,7 @@ resource "aws_instance" "vm_aplicacion" {
 
   tags = { Name = "vm-aplicacion-ecommerce" }
 
-  user_data = <<-EOF
+  user_data = replace(<<-EOF
               #!/bin/bash
               # 1. Preparar dependencias base
               apt-get update -y
@@ -143,7 +143,12 @@ resource "aws_instance" "vm_aplicacion" {
               
               # 6. Levantar todo
               sudo docker compose -f docker-compose.prod.yml up --build -d
+
+              # 7. Esperar a que la base de datos arranque y sembrar los productos
+              sleep 30
+              sudo docker exec ecommerce-backend-prod npx prisma db seed
               EOF
+  , "\r", "")
 }
 
 resource "aws_instance" "vm_backup" {
@@ -171,7 +176,7 @@ resource "google_storage_bucket" "bucket_gcp_backup" {
 
 resource "google_compute_instance" "vm_contingencia_gcp" {
   name         = "vm-contingencia-ecommerce"
-  machine_type = "e2-micro"
+  machine_type = "e2-medium"
   zone         = "${var.gcp_region}-a"
 
   boot_disk {
@@ -185,7 +190,7 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
     access_config {}
   }
 
-  metadata_startup_script = <<-EOF
+  metadata_startup_script = replace(<<-EOF
                             #!/bin/bash
                             # 1. Preparar dependencias base
                             apt-get update -y
@@ -222,7 +227,12 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
                             
                             # 6. Levantar todo
                             sudo docker compose -f docker-compose.prod.yml up --build -d
+                            
+                            # 7. Esperar a que la base de datos arranque y sembrar los productos
+                            sleep 30
+                            sudo docker exec ecommerce-backend-prod npx prisma db seed
                             EOF
+  , "\r", "")
 
   tags = ["http-server", "https-server", "backend-api"]
 }
@@ -234,7 +244,7 @@ resource "google_compute_firewall" "allow_http" {
   allow {
     protocol = "tcp"
     # Abrimos puerto 80 (Frontend) y 3000 (Backend)
-    ports    = ["80", "3000"]
+    ports = ["80", "3000"]
   }
 
   source_ranges = ["0.0.0.0/0"]
