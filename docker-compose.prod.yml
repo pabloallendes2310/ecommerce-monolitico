@@ -63,8 +63,72 @@ services:
       timeout: 5s
       retries: 8
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ecommerce-prometheus-prod
+    profiles:
+      - monitoring
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoreo-local/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data_prod:/prometheus
+    depends_on:
+      backend:
+        condition: service_healthy
+      cadvisor:
+        condition: service_started
+      postgres-exporter:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ecommerce-grafana-prod
+    profiles:
+      - monitoring
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana_data_prod:/var/lib/grafana
+      - ./monitoreo-local/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: ecommerce-cadvisor-prod
+    profiles:
+      - monitoring
+    ports:
+      - "8081:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: ecommerce-postgres-exporter-prod
+    profiles:
+      - monitoring
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-monolito}@db:5432/${POSTGRES_DB:-ecommerce_db}?sslmode=disable
+    ports:
+      - "9187:9187"
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   postgres_data_prod:
+  prometheus_data_prod:
+  grafana_data_prod:
 
 networks:
   default:

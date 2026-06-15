@@ -74,6 +74,22 @@ resource "aws_security_group" "sg_ecommerce" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Grafana para monitoreo
+  ingress {
+    from_port   = 3001
+    to_port     = 3001
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  # Prometheus para monitoreo
+  ingress {
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -141,8 +157,8 @@ resource "aws_instance" "vm_aplicacion" {
               JWT_SECRET=${var.jwt_secret}
               EOT
               
-              # 6. Levantar todo
-              sudo docker compose -f docker-compose.prod.yml up --build -d
+              # 6. Levantar aplicaciones y monitoreo
+              sudo docker compose -f docker-compose.prod.yml --profile monitoring up --build -d
 
               # 7. Esperar a que la base de datos arranque y sembrar los productos
               sleep 30
@@ -225,8 +241,8 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
                             JWT_SECRET=${var.jwt_secret}
                             EOT
                             
-                            # 6. Levantar todo
-                            sudo docker compose -f docker-compose.prod.yml up --build -d
+                            # 6. Levantar aplicaciones y monitoreo
+                            sudo docker compose -f docker-compose.prod.yml --profile monitoring up --build -d
                             
                             # 7. Esperar a que la base de datos arranque y sembrar los productos
                             sleep 30
@@ -243,8 +259,8 @@ resource "google_compute_firewall" "allow_http" {
 
   allow {
     protocol = "tcp"
-    # Abrimos puerto 80 (Frontend) y 3000 (Backend)
-    ports = ["80", "3000"]
+    # Abrimos puerto 80 (Frontend), 3000 (Backend), 3001 (Grafana) y 9090 (Prometheus)
+    ports = ["80", "3000", "3001", "9090"]
   }
 
   source_ranges = ["0.0.0.0/0"]
