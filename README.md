@@ -50,11 +50,44 @@ docker compose up --build -d
 docker compose -f docker-compose.prod.yml up --build -d
 ```
 
+### Produccion local con monitoreo
+
+```bash
+docker compose -f docker-compose.prod.yml --profile monitoring up --build -d
+```
+
+Terraform usa este mismo profile para levantar la aplicacion con Prometheus y Grafana en AWS/GCP.
+
 ## URLs por defecto
 
 - Frontend: `http://localhost:8080`
 - Backend: `http://localhost:3000`
 - PostgreSQL: `localhost:5432`
+- Metricas backend: `http://localhost:3000/metrics`
+
+## Monitoreo local
+
+La carpeta `monitoreo-local/` contiene Prometheus, Grafana, cAdvisor y postgres-exporter.
+
+Levantar solo la aplicacion:
+
+```bash
+docker compose up --build -d
+```
+
+Levantar la aplicacion con monitoreo:
+
+```bash
+docker compose --profile monitoring up --build -d
+```
+
+URLs de monitoreo:
+
+- Prometheus: `http://localhost:9090`
+- Grafana: `http://localhost:3001`
+- cAdvisor: `http://localhost:8081`
+
+Mas detalle en `monitoreo-local/README.md`.
 
 ## Verificaciones utiles
 

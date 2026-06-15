@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "aws-backend"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["IP_PUBLICA_AWS:3000"]
+        labels:
+          cloud: "aws"
+          role: "principal"
+
+  - job_name: "gcp-backend"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["IP_PUBLICA_GCP:3000"]
+        labels:
+          cloud: "gcp"
+          role: "contingencia"
