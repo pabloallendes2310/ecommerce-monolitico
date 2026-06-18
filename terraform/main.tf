@@ -113,16 +113,23 @@ resource "aws_instance" "vm_aplicacion" {
   subnet_id              = aws_subnet.subnet_app.id
   vpc_security_group_ids = [aws_security_group.sg_ecommerce.id]
 
-  ebs_block_device {
-    device_name = "/dev/sdf"
-    volume_size = 10
-    volume_type = "gp2"
+  # Disco principal de 25GB (Free Tier permite hasta 30GB)
+  root_block_device {
+    volume_size = 25
+    volume_type = "gp3" # gp3 es más rápido y económico que gp2
   }
 
   tags = { Name = "vm-aplicacion-ecommerce" }
 
   user_data = replace(<<-EOF
               #!/bin/bash
+
+              # 0. Crear memoria Swap de 2GB para evitar colapso de RAM al compilar
+              fallocate -l 2G /swapfile
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+
               # 1. Preparar dependencias base
               apt-get update -y
               apt-get install -y ca-certificates curl gnupg git
@@ -167,14 +174,6 @@ resource "aws_instance" "vm_aplicacion" {
   , "\r", "")
 }
 
-resource "aws_instance" "vm_backup" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = var.tipo_instancia_aws
-  subnet_id              = aws_subnet.subnet_backup.id
-  vpc_security_group_ids = [aws_security_group.sg_ecommerce.id]
-  tags                   = { Name = "vm-backup-ecommerce" }
-}
-
 resource "aws_s3_bucket" "bucket_aws_backup" {
   bucket        = "ecommerce-monolitico-aws-${var.sufijo_equipo}"
   force_destroy = true
@@ -198,6 +197,7 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
   boot_disk {
     initialize_params {
       image = "ubuntu-os-cloud/ubuntu-2204-lts"
+      size  = 25
     }
   }
 
