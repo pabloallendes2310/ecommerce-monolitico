@@ -1,123 +1,282 @@
-# ecommerce-monolitico
+# E-Commerce Monolítico Multi-Cloud
 
-Aplicacion e-commerce monolitica con:
+Proyecto académico desarrollado para la asignatura **Infraestructura en Servicios Cloud**.
 
-- Frontend: React + Vite, servido por nginx en Docker
-- Backend: Node.js + Express + Prisma
-- Base de datos: PostgreSQL
+La aplicación implementa una plataforma de comercio electrónico monolítica desplegada mediante una arquitectura Multi-Cloud, utilizando:
+
+- AWS como infraestructura principal.
+- Google Cloud Platform (GCP) como infraestructura de contingencia.
+- Docker y Docker Compose para la contenerización.
+- Terraform para el aprovisionamiento de infraestructura.
+- Prometheus y Grafana para monitoreo.
+
+## Funcionalidades
+
+- Catálogo de productos
+- Carrito de compras
+- Simulación de proceso de compra
+- Gestión de usuarios y órdenes
+- Monitoreo de la aplicación y contenedores
+
+> **Nota:** El sistema tiene fines académicos. No procesa pagos reales ni almacena información bancaria sensible.
+
+---
+
+## Stack tecnológico
+
+### Infraestructura
+- AWS
+- Google Cloud Platform (GCP)
+- Terraform
+- Docker
+- Docker Compose
+
+### Frontend
+- React 19
+- Vite 8
+- Nginx
+
+### Backend
+- Node.js
+- Express 5
+- TypeScript
+- Prisma ORM
+- JWT
+
+### Base de datos
+- PostgreSQL 15
+
+### Monitoreo
+- Prometheus
+- Grafana
+- cAdvisor
+- PostgreSQL Exporter
+
+---
 
 ## Requisitos
 
+- Git
 - Docker Desktop (con Docker Compose v2)
+- Terraform >= 1.5
+- Cuenta de AWS
+- Cuenta de Google Cloud
+
+---
 
 ## Estructura principal
 
-- `frontend/`: app React y Dockerfile de frontend
-- `backend/`: API Express, Prisma y Dockerfile de backend
-- `docker-compose.yml`: stack completo para desarrollo local
-- `docker-compose.prod.yml`: stack completo para produccion local
-- `.env.example`: variables de entorno base para compose
+- `frontend/`: aplicación React y configuración de Nginx
+- `backend/`: API Express, Prisma y lógica de negocio
+- `terraform/`: infraestructura en AWS y GCP
+- `monitoreo-local/`: configuración de Prometheus y Grafana
+- `docker-compose.yml`: entorno de desarrollo
+- `docker-compose.prod.yml`: entorno de producción local
+
+---
 
 ## Variables de entorno
 
-1. En la raiz, crea `.env` desde `.env.example`.
-2. Ajusta valores si necesitas cambiar puertos o credenciales.
+Crear un archivo `.env` en la raíz del proyecto.
 
-Valores por defecto relevantes:
+Valores por defecto:
 
 ```env
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=monolito
 POSTGRES_DB=ecommerce_db
 POSTGRES_PORT=5432
+
 BACKEND_PORT=3000
 FRONTEND_PORT=8080
+
 JWT_SECRET=tu-secreto-cambiar
+
 VITE_API_URL=http://localhost:3000
+
+GRAFANA_ADMIN_PASSWORD=admin
 ```
 
-## Levantar la app completa
+---
 
-### Desarrollo local
+## Levantar la aplicación
+
+### Desarrollo
 
 ```bash
-docker compose up --build -d
+docker compose up --build
 ```
 
-### Produccion local
+En segundo plano:
 
 ```bash
-docker compose -f docker-compose.prod.yml up --build -d
+docker compose up -d
 ```
 
-### Produccion local con monitoreo
-
-```bash
-docker compose -f docker-compose.prod.yml --profile monitoring up --build -d
-```
-
-Terraform usa este mismo profile para levantar la aplicacion con Prometheus y Grafana en AWS/GCP.
-
-## URLs por defecto
-
-- Frontend: `http://localhost:8080`
-- Backend: `http://localhost:3000`
-- PostgreSQL: `localhost:5432`
-- Metricas backend: `http://localhost:3000/metrics`
-
-## Monitoreo local
-
-La carpeta `monitoreo-local/` contiene Prometheus, Grafana, cAdvisor y postgres-exporter.
-
-Levantar solo la aplicacion:
-
-```bash
-docker compose up --build -d
-```
-
-Levantar la aplicacion con monitoreo:
-
-```bash
-docker compose --profile monitoring up --build -d
-```
-
-URLs de monitoreo:
-
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3001`
-- cAdvisor: `http://localhost:8081`
-
-Mas detalle en `monitoreo-local/README.md`.
-
-## Verificaciones utiles
-
-```bash
-docker compose ps
-docker compose logs --no-color --tail 80 backend
-docker compose logs --no-color --tail 80 frontend
-```
-
-Pruebas HTTP rapidas:
-
-- Backend: `GET http://localhost:3000/items`
-- Frontend: `GET http://localhost:8080`
-
-## Parar y limpiar
-
-Parar stack:
+Detener:
 
 ```bash
 docker compose down
 ```
 
-Parar y eliminar volumenes (incluye datos de DB):
+### Producción
 
 ```bash
-docker compose down -v
+docker compose -f docker-compose.prod.yml up --build -d
 ```
 
-## Notas importantes
+Detener:
 
-- El backend aplica migraciones al arrancar en ambos modos Docker.
-- El frontend recibe la URL de API por `VITE_API_URL` en build de imagen.
-- Si cambias `VITE_API_URL`, reconstruye frontend (`--build`).
+```bash
+docker compose -f docker-compose.prod.yml down
+```
+
+---
+
+## Servicios y puertos
+
+| Servicio | Puerto |
+|----------|---------|
+| Frontend | 8080 |
+| Backend | 3000 |
+| PostgreSQL | 5432 |
+| Grafana | 3001 |
+| Prometheus | 9090 |
+| cAdvisor | 8081 |
+| PostgreSQL Exporter | 9187 |
+
+---
+
+## Accesos
+
+### Frontend
+
+```text
+http://localhost:8080
+```
+
+### Backend
+
+```text
+http://localhost:3000
+```
+
+### Grafana
+
+```text
+http://localhost:3001
+```
+
+Credenciales iniciales:
+
+```text
+Usuario: admin
+Contraseña: admin
+```
+
+En el primer inicio de sesión se solicitará el cambio de contraseña.
+
+### Prometheus
+
+```text
+http://localhost:9090
+```
+
+### cAdvisor
+
+```text
+http://localhost:8081
+```
+
+---
+
+## Verificación
+
+Verificar contenedores:
+
+```bash
+docker ps
+```
+
+Ver logs:
+
+```bash
+docker compose logs
+```
+
+Ver logs de un servicio:
+
+```bash
+docker compose logs backend
+docker compose logs frontend
+docker compose logs db
+```
+
+Ingresar a PostgreSQL:
+
+```bash
+docker exec -it ecommerce-db psql -U postgres -d ecommerce_db
+```
+
+Listar tablas:
+
+```sql
+\dt
+```
+
+Ingresar al backend:
+
+```bash
+docker exec -it ecommerce-backend sh
+```
+
+Verificar estado de Prisma:
+
+```bash
+npx prisma migrate status
+```
+
+---
+
+## Despliegue de infraestructura
+
+Inicializar Terraform:
+
+```bash
+terraform init
+```
+
+Planificar cambios:
+
+```bash
+terraform plan
+```
+
+Aplicar infraestructura:
+
+```bash
+terraform apply
+```
+
+Ver outputs:
+
+```bash
+terraform output
+```
+
+Destruir infraestructura:
+
+```bash
+terraform destroy
+```
+
+---
+
+## Integrantes
+
+- Pablo Allendes
+- Benjamin Muñoz
+- Javier Rojas
+- Gabriel Hidalgo
+- Matias Soto
+- Hans Osses
