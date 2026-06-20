@@ -179,6 +179,47 @@ resource "aws_s3_bucket" "bucket_aws_backup" {
   force_destroy = true
 }
 
+# ==========================================
+# AUTOMATIZACIÓN DE IMÁGENES S3
+# ==========================================
+
+# 1. Quitar el bloqueo de acceso público de AWS
+resource "aws_s3_bucket_public_access_block" "acceso_publico_s3" {
+  bucket                  = aws_s3_bucket.bucket_aws_backup.id
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+# 2. Política para que el e-commerce pueda leer las fotos libremente
+resource "aws_s3_bucket_policy" "politica_publica_s3" {
+  bucket     = aws_s3_bucket.bucket_aws_backup.id
+  depends_on = [aws_s3_bucket_public_access_block.acceso_publico_s3]
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.bucket_aws_backup.arn}/*"
+      }
+    ]
+  })
+}
+
+# 3. Subir automáticamente cada foto de la carpeta local "img"
+resource "aws_s3_object" "subir_fotos_s3" {
+  for_each = fileset("${path.module}/img", "*.jpg")
+
+  bucket       = aws_s3_bucket.bucket_aws_backup.id
+  key          = each.value
+  source       = "${path.module}/img/${each.value}"
+  content_type = "image/jpeg"
+}
+
 # ============================================
 # INFRAESTRUCTURA EN GCP (NUBE DE RESPALDO)
 # ============================================
