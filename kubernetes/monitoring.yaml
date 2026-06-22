@@ -91,8 +91,8 @@ spec:
               containerPort: 9090
           resources:
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 25m
+              memory: 64Mi
             limits:
               cpu: 500m
               memory: 768Mi
@@ -193,8 +193,8 @@ spec:
                   key: GRAFANA_ADMIN_PASSWORD
           resources:
             requests:
-              cpu: 75m
-              memory: 128Mi
+              cpu: 25m
+              memory: 64Mi
             limits:
               cpu: 300m
               memory: 384Mi
@@ -271,8 +271,8 @@ spec:
               containerPort: 8080
           resources:
             requests:
-              cpu: 50m
-              memory: 128Mi
+              cpu: 15m
+              memory: 48Mi
             limits:
               cpu: 300m
               memory: 384Mi
@@ -347,8 +347,8 @@ spec:
               value: postgresql://postgres:$(POSTGRES_PASSWORD)@postgres:5432/ecommerce_db?sslmode=disable
           resources:
             requests:
-              cpu: 25m
-              memory: 32Mi
+              cpu: 10m
+              memory: 16Mi
             limits:
               cpu: 150m
               memory: 128Mi
