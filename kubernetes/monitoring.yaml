@@ -263,6 +263,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       containers:
+
         - name: cadvisor
           image: gcr.io/cadvisor/cadvisor:v0.49.1
           securityContext:
