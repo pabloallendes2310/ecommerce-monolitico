@@ -8,12 +8,22 @@ output "ip_publica_gcp_contingencia" {
   description = "IP del servidor de contingencia en GCP (Failover)"
 }
 
+output "orquestador_aws" {
+  value       = "k3s sobre EC2"
+  description = "Cluster Kubernetes principal usado para la aplicacion."
+}
+
+output "bucket_backups_gcp" {
+  value       = google_storage_bucket.bucket_gcp_backup.name
+  description = "Bucket secundario que recibe los backups diarios de PostgreSQL."
+}
+
 output "endpoints_monitoreo_aws" {
   value = {
     frontend   = "http://${aws_instance.vm_aplicacion.public_ip}"
-    backend    = "http://${aws_instance.vm_aplicacion.public_ip}:3000"
-    health     = "http://${aws_instance.vm_aplicacion.public_ip}:3000/health"
-    metrics    = "http://${aws_instance.vm_aplicacion.public_ip}:3000/metrics"
+    backend    = "http://${aws_instance.vm_aplicacion.public_ip}/api"
+    health     = "http://${aws_instance.vm_aplicacion.public_ip}/api/health"
+    metrics    = "http://${aws_instance.vm_aplicacion.public_ip}/api/metrics"
     grafana    = "http://${aws_instance.vm_aplicacion.public_ip}:3001"
     prometheus = "http://${aws_instance.vm_aplicacion.public_ip}:9090"
   }

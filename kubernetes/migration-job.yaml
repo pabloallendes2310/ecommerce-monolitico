@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-migrations
+  namespace: ecommerce
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrations
+          image: ecommerce-backend:local
+          imagePullPolicy: Never
+          command: ["sh", "-c", "npx prisma migrate deploy"]
+          envFrom:
+            - configMapRef:
+                name: ecommerce-config
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ecommerce-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: postgresql://postgres:$(POSTGRES_PASSWORD)@postgres:5432/ecommerce_db
+

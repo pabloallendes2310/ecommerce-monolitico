@@ -5,6 +5,9 @@ Aplicacion e-commerce monolitica con:
 - Frontend: React + Vite, servido por nginx en Docker
 - Backend: Node.js + Express + Prisma
 - Base de datos: PostgreSQL
+- Desarrollo local: Docker Compose
+- Nube principal: Kubernetes k3s en AWS
+- Contingencia y backups: Google Cloud
 
 ## Requisitos
 
@@ -16,6 +19,8 @@ Aplicacion e-commerce monolitica con:
 - `backend/`: API Express, Prisma y Dockerfile de backend
 - `docker-compose.yml`: stack completo para desarrollo local
 - `docker-compose.prod.yml`: stack completo para produccion local
+- `kubernetes/`: Deployments, Services, almacenamiento, monitoreo y backups
+- `terraform/`: infraestructura multicloud y bootstrap automatico de k3s
 - `.env.example`: variables de entorno base para compose
 
 ## Variables de entorno
@@ -56,7 +61,21 @@ docker compose -f docker-compose.prod.yml up --build -d
 docker compose -f docker-compose.prod.yml --profile monitoring up --build -d
 ```
 
-Terraform usa este mismo profile para levantar la aplicacion con Prometheus y Grafana en AWS/GCP.
+La VM de contingencia GCP usa este profile. En AWS, Terraform reemplaza Docker Compose por k3s y aplica los manifiestos de `kubernetes/`.
+
+## Despliegue Kubernetes con Terraform
+
+Antes de aplicar, envia los cambios a GitHub porque la EC2 clona el repositorio durante su arranque.
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan
+terraform apply
+```
+
+El despliegue crea PostgreSQL persistente, dos replicas de frontend/backend, Prometheus, Grafana y un backup diario hacia Google Cloud Storage. Consulta `terraform/README.md` y `kubernetes/README.md` para operacion y diagnostico.
 
 ## URLs por defecto
 
