@@ -1,6 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
+# --- TRUCO DE RAM VIRTUAL (SWAP 4GB) ---
+fallocate -l 4G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
+# ---------------------------------------
+
 exec > >(tee /var/log/ecommerce-bootstrap.log) 2>&1
 
 apt-get update -y
