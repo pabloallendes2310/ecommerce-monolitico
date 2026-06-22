@@ -136,9 +136,111 @@ resource "aws_instance" "vm_backup" {
   tags                   = { Name = "vm-backup-ecommerce" }
 }
 
+  # Disco principal de 25GB (Free Tier permite hasta 30GB)
+  root_block_device {
+    volume_size = 25
+    volume_type = "gp3" # gp3 es más rápido y económico que gp2
+  }
+
+  tags = { Name = "vm-aplicacion-ecommerce" }
+
+  user_data = replace(<<-EOF
+              #!/bin/bash
+
+              # 0. Crear memoria Swap de 2GB para evitar colapso de RAM al compilar
+              fallocate -l 2G /swapfile
+              chmod 600 /swapfile
+              mkswap /swapfile
+              swapon /swapfile
+
+              # 1. Preparar dependencias base
+              apt-get update -y
+              apt-get install -y ca-certificates curl gnupg git
+
+              # 2. Configurar repositorio oficial de Docker V2
+              install -m 0755 -d /etc/apt/keyrings
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+              chmod a+r /etc/apt/keyrings/docker.gpg
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+              # 3. Instalar Docker CE y Compose moderno
+              apt-get update -y
+              apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+              systemctl start docker
+              systemctl enable docker
+              
+              # 4. Clonar el repositorio
+              git clone https://github.com/pabloallendes2310/ecommerce-monolitico.git /home/ubuntu/ecommerce
+              cd /home/ubuntu/ecommerce
+
+              # 5. Obtener IP publica de AWS y crear variables dinámicas
+              TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+              PUBLIC_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/public-ipv4)
+
+              cat <<EOT > .env
+              POSTGRES_USER=postgres
+              POSTGRES_PASSWORD=${var.db_password}
+              POSTGRES_DB=ecommerce_db
+              FRONTEND_PORT=80
+              BACKEND_PORT=3000
+              VITE_API_URL=http://$PUBLIC_IP:3000
+              JWT_SECRET=${var.jwt_secret}
+              EOT
+              
+              # 6. Levantar aplicaciones y monitoreo
+              sudo docker compose -f docker-compose.prod.yml --profile monitoring up --build -d
+
+              # 7. Esperar a que la base de datos arranque y sembrar los productos
+              sleep 30
+              sudo docker exec ecommerce-backend-prod npx prisma db seed
+              EOF
+  , "\r", "")
+}
+
 resource "aws_s3_bucket" "bucket_aws_backup" {
   bucket        = "ecommerce-monolitico-aws-${var.sufijo_equipo}"
   force_destroy = true
+}
+
+# ==========================================
+# AUTOMATIZACIÓN DE IMÁGENES S3
+# ==========================================
+
+# 1. Quitar el bloqueo de acceso público de AWS
+resource "aws_s3_bucket_public_access_block" "acceso_publico_s3" {
+  bucket                  = aws_s3_bucket.bucket_aws_backup.id
+  block_public_acls       = false
+  block_public_policy     = false
+  ignore_public_acls      = false
+  restrict_public_buckets = false
+}
+
+# 2. Política para que el e-commerce pueda leer las fotos libremente
+resource "aws_s3_bucket_policy" "politica_publica_s3" {
+  bucket     = aws_s3_bucket.bucket_aws_backup.id
+  depends_on = [aws_s3_bucket_public_access_block.acceso_publico_s3]
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.bucket_aws_backup.arn}/*"
+      }
+    ]
+  })
+}
+
+# 3. Subir automáticamente cada foto de la carpeta local "img"
+resource "aws_s3_object" "subir_fotos_s3" {
+  for_each = fileset("${path.module}/img", "*.jpg")
+
+  bucket       = aws_s3_bucket.bucket_aws_backup.id
+  key          = each.value
+  source       = "${path.module}/img/${each.value}"
+  content_type = "image/jpeg"
 }
 
 # ============================================
@@ -202,6 +304,7 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
   boot_disk {
     initialize_params {
       image = "ubuntu-os-cloud/ubuntu-2204-lts"
+      size  = 25
     }
   }
 

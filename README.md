@@ -1,6 +1,6 @@
-# ecommerce-monolitico
+# E-Commerce Monolítico Multi-Cloud
 
-Aplicacion e-commerce monolitica con:
+Proyecto académico desarrollado para la asignatura **Infraestructura en Servicios Cloud**.
 
 - Frontend: React + Vite, servido por nginx en Docker
 - Backend: Node.js + Express + Prisma
@@ -11,7 +11,13 @@ Aplicacion e-commerce monolitica con:
 
 ## Requisitos
 
+- Git
 - Docker Desktop (con Docker Compose v2)
+- Terraform >= 1.5
+- Cuenta de AWS
+- Cuenta de Google Cloud
+
+---
 
 ## Estructura principal
 
@@ -25,40 +31,94 @@ Aplicacion e-commerce monolitica con:
 
 ## Variables de entorno
 
-1. En la raiz, crea `.env` desde `.env.example`.
-2. Ajusta valores si necesitas cambiar puertos o credenciales.
+Crear un archivo `.env` en la raíz del proyecto.
 
-Valores por defecto relevantes:
+Valores por defecto:
 
 ```env
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=monolito
 POSTGRES_DB=ecommerce_db
 POSTGRES_PORT=5432
+
 BACKEND_PORT=3000
 FRONTEND_PORT=8080
+
 JWT_SECRET=tu-secreto-cambiar
+
 VITE_API_URL=http://localhost:3000
+
+GRAFANA_ADMIN_PASSWORD=admin
 ```
 
-## Levantar la app completa
+---
 
-### Desarrollo local
+## Levantar la aplicación
+
+### Desarrollo
 
 ```bash
-docker compose up --build -d
+docker compose up --build
 ```
 
-### Produccion local
+En segundo plano:
+
+```bash
+docker compose up -d
+```
+
+Detener:
+
+```bash
+docker compose down
+```
+
+### Producción
 
 ```bash
 docker compose -f docker-compose.prod.yml up --build -d
 ```
 
-### Produccion local con monitoreo
+Detener:
 
 ```bash
-docker compose -f docker-compose.prod.yml --profile monitoring up --build -d
+docker compose -f docker-compose.prod.yml down
+```
+
+---
+
+## Servicios y puertos
+
+| Servicio | Puerto |
+|----------|---------|
+| Frontend | 8080 |
+| Backend | 3000 |
+| PostgreSQL | 5432 |
+| Grafana | 3001 |
+| Prometheus | 9090 |
+| cAdvisor | 8081 |
+| PostgreSQL Exporter | 9187 |
+
+---
+
+## Accesos
+
+### Frontend
+
+```text
+http://localhost:8080
+```
+
+### Backend
+
+```text
+http://localhost:3000
+```
+
+### Grafana
+
+```text
+http://localhost:3001
 ```
 
 La VM de contingencia GCP usa este profile. En AWS, Terraform reemplaza Docker Compose por k3s y aplica los manifiestos de `kubernetes/`.
@@ -77,66 +137,114 @@ terraform apply
 
 El despliegue crea PostgreSQL persistente, dos replicas de frontend/backend, Prometheus, Grafana y un backup diario hacia Google Cloud Storage. Consulta `terraform/README.md` y `kubernetes/README.md` para operacion y diagnostico.
 
-## URLs por defecto
-
-- Frontend: `http://localhost:8080`
-- Backend: `http://localhost:3000`
-- PostgreSQL: `localhost:5432`
-- Metricas backend: `http://localhost:3000/metrics`
-
-## Monitoreo local
-
-La carpeta `monitoreo-local/` contiene Prometheus, Grafana, cAdvisor y postgres-exporter.
-
-Levantar solo la aplicacion:
-
-```bash
-docker compose up --build -d
+```text
+Usuario: admin
+Contraseña: admin
 ```
 
-Levantar la aplicacion con monitoreo:
+En el primer inicio de sesión se solicitará el cambio de contraseña.
 
-```bash
-docker compose --profile monitoring up --build -d
+### Prometheus
+
+```text
+http://localhost:9090
 ```
 
-URLs de monitoreo:
+### cAdvisor
 
-- Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3001`
-- cAdvisor: `http://localhost:8081`
-
-Mas detalle en `monitoreo-local/README.md`.
-
-## Verificaciones utiles
-
-```bash
-docker compose ps
-docker compose logs --no-color --tail 80 backend
-docker compose logs --no-color --tail 80 frontend
+```text
+http://localhost:8081
 ```
 
-Pruebas HTTP rapidas:
+---
 
-- Backend: `GET http://localhost:3000/items`
-- Frontend: `GET http://localhost:8080`
+## Verificación
 
-## Parar y limpiar
-
-Parar stack:
+Verificar contenedores:
 
 ```bash
-docker compose down
+docker ps
 ```
 
-Parar y eliminar volumenes (incluye datos de DB):
+Ver logs:
 
 ```bash
-docker compose down -v
+docker compose logs
 ```
 
-## Notas importantes
+Ver logs de un servicio:
 
-- El backend aplica migraciones al arrancar en ambos modos Docker.
-- El frontend recibe la URL de API por `VITE_API_URL` en build de imagen.
-- Si cambias `VITE_API_URL`, reconstruye frontend (`--build`).
+```bash
+docker compose logs backend
+docker compose logs frontend
+docker compose logs db
+```
+
+Ingresar a PostgreSQL:
+
+```bash
+docker exec -it ecommerce-db psql -U postgres -d ecommerce_db
+```
+
+Listar tablas:
+
+```sql
+\dt
+```
+
+Ingresar al backend:
+
+```bash
+docker exec -it ecommerce-backend sh
+```
+
+Verificar estado de Prisma:
+
+```bash
+npx prisma migrate status
+```
+
+---
+
+## Despliegue de infraestructura
+
+Inicializar Terraform:
+
+```bash
+terraform init
+```
+
+Planificar cambios:
+
+```bash
+terraform plan
+```
+
+Aplicar infraestructura:
+
+```bash
+terraform apply
+```
+
+Ver outputs:
+
+```bash
+terraform output
+```
+
+Destruir infraestructura:
+
+```bash
+terraform destroy
+```
+
+---
+
+## Integrantes
+
+- Pablo Allendes
+- Benjamin Muñoz
+- Javier Rojas
+- Gabriel Hidalgo
+- Matias Soto
+- Hans Osses
