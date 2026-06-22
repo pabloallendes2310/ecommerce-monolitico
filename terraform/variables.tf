@@ -25,7 +25,7 @@ variable "sufijo_equipo" {
 variable "tipo_instancia_aws" {
   description = "Tipo de máquina en AWS compatible con Free Tier moderno"
   type        = string
-  default     = "t3.micro"
+  default     = "t3.medium"
 }
 
 variable "tipo_instancia_backup_aws" {
