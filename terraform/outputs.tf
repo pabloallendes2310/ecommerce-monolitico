@@ -18,6 +18,16 @@ output "bucket_backups_gcp" {
   description = "Bucket secundario que recibe los backups diarios de PostgreSQL."
 }
 
+output "bucket_assets_aws" {
+  value       = aws_s3_bucket.bucket_aws_assets.bucket
+  description = "Bucket publico que contiene las imagenes de productos."
+}
+
+output "url_assets_aws" {
+  value       = "https://${aws_s3_bucket.bucket_aws_assets.bucket_regional_domain_name}"
+  description = "URL base utilizada por el seed para las imagenes de productos."
+}
+
 output "endpoints_monitoreo_aws" {
   value = {
     frontend   = "http://${aws_instance.vm_aplicacion.public_ip}"

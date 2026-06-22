@@ -29,6 +29,8 @@ rm -f /tmp/ecommerce-images.tar
 
 kubectl apply -f kubernetes/namespace.yaml
 kubectl apply -f kubernetes/configmap.yaml
+kubectl -n ecommerce patch configmap ecommerce-config --type merge \
+  --patch '{"data":{"ASSETS_BASE_URL":"${assets_base_url}"}}'
 
 DB_PASSWORD=$(printf '%s' '${db_password_b64}' | base64 -d)
 JWT_SECRET=$(printf '%s' '${jwt_secret_b64}' | base64 -d)

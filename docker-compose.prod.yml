@@ -33,6 +33,7 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-monolito}@db:5432/${POSTGRES_DB:-ecommerce_db}
       JWT_SECRET: ${JWT_SECRET:-tu-secreto-cambiar}
+      ASSETS_BASE_URL: ${ASSETS_BASE_URL:-}
     depends_on:
       db:
         condition: service_healthy

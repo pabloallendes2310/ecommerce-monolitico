@@ -33,6 +33,8 @@ Terraform crea:
 - GCP: APIs requeridas, bucket versionado, cuenta de servicio para backups y VM de contingencia.
 - Kubernetes: aplicacion, almacenamiento persistente, monitoreo y backup diario.
 
+AWS usa dos buckets separados: `bucket_aws_assets` publica las imagenes de productos y `bucket_aws_backup` permanece privado para respaldos.
+
 El primer arranque tarda porque la EC2 instala paquetes y construye las imagenes. Puedes revisar `/var/log/ecommerce-bootstrap.log` por SSH cuando configures `aws_key_name`.
 
 ## Seguridad

@@ -122,9 +122,14 @@ resource "aws_instance" "vm_aplicacion" {
     grafana_password_b64 = base64encode(var.grafana_admin_password)
     gcp_key_b64          = google_service_account_key.backup.private_key
     gcp_backup_bucket    = google_storage_bucket.bucket_gcp_backup.name
+    assets_base_url      = "https://${aws_s3_bucket.bucket_aws_assets.bucket_regional_domain_name}"
   })
 
-  depends_on = [google_storage_bucket_iam_member.backup_writer]
+  depends_on = [
+    google_storage_bucket_iam_member.backup_writer,
+    aws_s3_bucket_policy.politica_publica_s3,
+    aws_s3_object.subir_fotos_s3,
+  ]
 }
 
 resource "aws_instance" "vm_backup" {
@@ -136,88 +141,40 @@ resource "aws_instance" "vm_backup" {
   tags                   = { Name = "vm-backup-ecommerce" }
 }
 
-  # Disco principal de 25GB (Free Tier permite hasta 30GB)
-  root_block_device {
-    volume_size = 25
-    volume_type = "gp3" # gp3 es más rápido y económico que gp2
-  }
-
-  tags = { Name = "vm-aplicacion-ecommerce" }
-
-  user_data = replace(<<-EOF
-              #!/bin/bash
-
-              # 0. Crear memoria Swap de 2GB para evitar colapso de RAM al compilar
-              fallocate -l 2G /swapfile
-              chmod 600 /swapfile
-              mkswap /swapfile
-              swapon /swapfile
-
-              # 1. Preparar dependencias base
-              apt-get update -y
-              apt-get install -y ca-certificates curl gnupg git
-
-              # 2. Configurar repositorio oficial de Docker V2
-              install -m 0755 -d /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-              chmod a+r /etc/apt/keyrings/docker.gpg
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-              # 3. Instalar Docker CE y Compose moderno
-              apt-get update -y
-              apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-              systemctl start docker
-              systemctl enable docker
-              
-              # 4. Clonar el repositorio
-              git clone https://github.com/pabloallendes2310/ecommerce-monolitico.git /home/ubuntu/ecommerce
-              cd /home/ubuntu/ecommerce
-
-              # 5. Obtener IP publica de AWS y crear variables dinámicas
-              TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-              PUBLIC_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/public-ipv4)
-
-              cat <<EOT > .env
-              POSTGRES_USER=postgres
-              POSTGRES_PASSWORD=${var.db_password}
-              POSTGRES_DB=ecommerce_db
-              FRONTEND_PORT=80
-              BACKEND_PORT=3000
-              VITE_API_URL=http://$PUBLIC_IP:3000
-              JWT_SECRET=${var.jwt_secret}
-              EOT
-              
-              # 6. Levantar aplicaciones y monitoreo
-              sudo docker compose -f docker-compose.prod.yml --profile monitoring up --build -d
-
-              # 7. Esperar a que la base de datos arranque y sembrar los productos
-              sleep 30
-              sudo docker exec ecommerce-backend-prod npx prisma db seed
-              EOF
-  , "\r", "")
-}
-
 resource "aws_s3_bucket" "bucket_aws_backup" {
   bucket        = "ecommerce-monolitico-aws-${var.sufijo_equipo}"
   force_destroy = true
 }
 
+resource "aws_s3_bucket_public_access_block" "bloqueo_publico_backup" {
+  bucket                  = aws_s3_bucket.bucket_aws_backup.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket" "bucket_aws_assets" {
+  bucket        = "ecommerce-monolitico-assets-${var.sufijo_equipo}"
+  force_destroy = true
+}
+
 # ==========================================
-# AUTOMATIZACIÓN DE IMÁGENES S3
+# AUTOMATIZACION DE IMAGENES S3
 # ==========================================
 
-# 1. Quitar el bloqueo de acceso público de AWS
+# 1. Permitir lectura publica en el bucket exclusivo de assets
 resource "aws_s3_bucket_public_access_block" "acceso_publico_s3" {
-  bucket                  = aws_s3_bucket.bucket_aws_backup.id
+  bucket                  = aws_s3_bucket.bucket_aws_assets.id
   block_public_acls       = false
   block_public_policy     = false
   ignore_public_acls      = false
   restrict_public_buckets = false
 }
 
-# 2. Política para que el e-commerce pueda leer las fotos libremente
+# 2. Politica de lectura publica para las imagenes del ecommerce
 resource "aws_s3_bucket_policy" "politica_publica_s3" {
-  bucket     = aws_s3_bucket.bucket_aws_backup.id
+  bucket     = aws_s3_bucket.bucket_aws_assets.id
   depends_on = [aws_s3_bucket_public_access_block.acceso_publico_s3]
 
   policy = jsonencode({
@@ -227,20 +184,21 @@ resource "aws_s3_bucket_policy" "politica_publica_s3" {
         Effect    = "Allow"
         Principal = "*"
         Action    = "s3:GetObject"
-        Resource  = "${aws_s3_bucket.bucket_aws_backup.arn}/*"
+        Resource  = "${aws_s3_bucket.bucket_aws_assets.arn}/*"
       }
     ]
   })
 }
 
-# 3. Subir automáticamente cada foto de la carpeta local "img"
+# 3. Subir automaticamente cada foto de la carpeta local "img"
 resource "aws_s3_object" "subir_fotos_s3" {
   for_each = fileset("${path.module}/img", "*.jpg")
 
-  bucket       = aws_s3_bucket.bucket_aws_backup.id
+  bucket       = aws_s3_bucket.bucket_aws_assets.id
   key          = each.value
   source       = "${path.module}/img/${each.value}"
   content_type = "image/jpeg"
+  etag         = filemd5("${path.module}/img/${each.value}")
 }
 
 # ============================================
@@ -335,7 +293,7 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
                             git clone https://github.com/pabloallendes2310/ecommerce-monolitico.git /home/ubuntu/ecommerce
                             cd /home/ubuntu/ecommerce
 
-                            # 5. Obtener IP publica de GCP y crear variables dinÃ¡micas
+                            # 5. Obtener IP publica de GCP y crear variables dinamicas
                             PUBLIC_IP=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip)
 
                             cat <<EOT > .env
@@ -347,6 +305,7 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
                             VITE_API_URL=http://$PUBLIC_IP:3000
                             JWT_SECRET=${var.jwt_secret}
                             GRAFANA_ADMIN_PASSWORD=${var.grafana_admin_password}
+                            ASSETS_BASE_URL=https://${aws_s3_bucket.bucket_aws_assets.bucket_regional_domain_name}
                             EOT
                             
                             # 6. Levantar aplicaciones y monitoreo
@@ -360,7 +319,11 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
 
   tags = ["http-server", "https-server", "backend-api"]
 
-  depends_on = [google_project_service.required]
+  depends_on = [
+    google_project_service.required,
+    aws_s3_bucket_policy.politica_publica_s3,
+    aws_s3_object.subir_fotos_s3,
+  ]
 }
 
 resource "google_compute_firewall" "allow_http" {
