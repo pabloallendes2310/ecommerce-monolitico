@@ -115,15 +115,19 @@ resource "aws_instance" "vm_aplicacion" {
   tags = { Name = "vm-aplicacion-k3s-ecommerce" }
 
   user_data_replace_on_change = true
-  user_data = templatefile("${path.module}/scripts/bootstrap-k3s.sh.tftpl", {
-    repository_url       = "https://github.com/pabloallendes2310/ecommerce-monolitico.git"
-    db_password_b64      = base64encode(var.db_password)
-    jwt_secret_b64       = base64encode(var.jwt_secret)
-    grafana_password_b64 = base64encode(var.grafana_admin_password)
-    gcp_key_b64          = google_service_account_key.backup.private_key
-    gcp_backup_bucket    = google_storage_bucket.bucket_gcp_backup.name
-    assets_base_url      = "https://${aws_s3_bucket.bucket_aws_assets.bucket_regional_domain_name}"
-  })
+  user_data = replace(
+    templatefile("${path.module}/scripts/bootstrap-k3s.sh.tftpl", {
+      repository_url       = "https://github.com/pabloallendes2310/ecommerce-monolitico.git"
+      db_password_b64      = base64encode(var.db_password)
+      jwt_secret_b64       = base64encode(var.jwt_secret)
+      grafana_password_b64 = base64encode(var.grafana_admin_password)
+      gcp_key_b64          = google_service_account_key.backup.private_key
+      gcp_backup_bucket    = google_storage_bucket.bucket_gcp_backup.name
+      assets_base_url      = "https://${aws_s3_bucket.bucket_aws_assets.bucket_regional_domain_name}"
+    }),
+    "\r\n",
+    "\n",
+  )
 
   depends_on = [
     google_storage_bucket_iam_member.backup_writer,
