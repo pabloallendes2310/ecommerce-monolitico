@@ -2,7 +2,7 @@ db_password             = "cambiar-password-postgres"
 jwt_secret              = "cambiar-secreto-jwt"
 grafana_admin_password  = "cambiar-password-grafana"
 aws_key_name            = null
-tipo_instancia_aws      = "t3.medium"
+tipo_instancia_aws      = "t3.micro"
 tipo_instancia_backup_aws = "t3.micro"
 
 # Ajustar estos valores al proyecto/equipo antes de terraform apply.
