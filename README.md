@@ -2,57 +2,12 @@
 
 Proyecto académico desarrollado para la asignatura **Infraestructura en Servicios Cloud**.
 
-La aplicación implementa una plataforma de comercio electrónico monolítica desplegada mediante una arquitectura Multi-Cloud, utilizando:
-
-- AWS como infraestructura principal.
-- Google Cloud Platform (GCP) como infraestructura de contingencia.
-- Docker y Docker Compose para la contenerización.
-- Terraform para el aprovisionamiento de infraestructura.
-- Prometheus y Grafana para monitoreo.
-
-## Funcionalidades
-
-- Catálogo de productos
-- Carrito de compras
-- Simulación de proceso de compra
-- Gestión de usuarios y órdenes
-- Monitoreo de la aplicación y contenedores
-
-> **Nota:** El sistema tiene fines académicos. No procesa pagos reales ni almacena información bancaria sensible.
-
----
-
-## Stack tecnológico
-
-### Infraestructura
-- AWS
-- Google Cloud Platform (GCP)
-- Terraform
-- Docker
-- Docker Compose
-
-### Frontend
-- React 19
-- Vite 8
-- Nginx
-
-### Backend
-- Node.js
-- Express 5
-- TypeScript
-- Prisma ORM
-- JWT
-
-### Base de datos
-- PostgreSQL 15
-
-### Monitoreo
-- Prometheus
-- Grafana
-- cAdvisor
-- PostgreSQL Exporter
-
----
+- Frontend: React + Vite, servido por nginx en Docker
+- Backend: Node.js + Express + Prisma
+- Base de datos: PostgreSQL
+- Desarrollo local: Docker Compose
+- Nube principal: Kubernetes k3s en AWS
+- Contingencia y backups: Google Cloud
 
 ## Requisitos
 
@@ -66,14 +21,13 @@ La aplicación implementa una plataforma de comercio electrónico monolítica de
 
 ## Estructura principal
 
-- `frontend/`: aplicación React y configuración de Nginx
-- `backend/`: API Express, Prisma y lógica de negocio
-- `terraform/`: infraestructura en AWS y GCP
-- `monitoreo-local/`: configuración de Prometheus y Grafana
-- `docker-compose.yml`: entorno de desarrollo
-- `docker-compose.prod.yml`: entorno de producción local
-
----
+- `frontend/`: app React y Dockerfile de frontend
+- `backend/`: API Express, Prisma y Dockerfile de backend
+- `docker-compose.yml`: stack completo para desarrollo local
+- `docker-compose.prod.yml`: stack completo para produccion local
+- `kubernetes/`: Deployments, Services, almacenamiento, monitoreo y backups
+- `terraform/`: infraestructura multicloud y bootstrap automatico de k3s
+- `.env.example`: variables de entorno base para compose
 
 ## Variables de entorno
 
@@ -167,7 +121,21 @@ http://localhost:3000
 http://localhost:3001
 ```
 
-Credenciales iniciales:
+La VM de contingencia GCP usa este profile. En AWS, Terraform reemplaza Docker Compose por k3s y aplica los manifiestos de `kubernetes/`.
+
+## Despliegue Kubernetes con Terraform
+
+Antes de aplicar, envia los cambios a GitHub porque la EC2 clona el repositorio durante su arranque.
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan
+terraform apply
+```
+
+El despliegue crea PostgreSQL persistente, dos replicas de frontend/backend, Prometheus, Grafana y un backup diario hacia Google Cloud Storage. Consulta `terraform/README.md` y `kubernetes/README.md` para operacion y diagnostico.
 
 ```text
 Usuario: admin

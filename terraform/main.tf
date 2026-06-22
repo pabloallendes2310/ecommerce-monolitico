@@ -66,14 +66,6 @@ resource "aws_security_group" "sg_ecommerce" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Abrimos el puerto 3000 para la API del Backend
-  ingress {
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   # Grafana para monitoreo
   ingress {
     from_port   = 3001
@@ -110,8 +102,39 @@ data "aws_ami" "ubuntu" {
 resource "aws_instance" "vm_aplicacion" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.tipo_instancia_aws
+  key_name               = var.aws_key_name
   subnet_id              = aws_subnet.subnet_app.id
   vpc_security_group_ids = [aws_security_group.sg_ecommerce.id]
+
+  root_block_device {
+    volume_size           = 30
+    volume_type           = "gp3"
+    delete_on_termination = true
+  }
+
+  tags = { Name = "vm-aplicacion-k3s-ecommerce" }
+
+  user_data_replace_on_change = true
+  user_data = templatefile("${path.module}/scripts/bootstrap-k3s.sh.tftpl", {
+    repository_url       = "https://github.com/pabloallendes2310/ecommerce-monolitico.git"
+    db_password_b64      = base64encode(var.db_password)
+    jwt_secret_b64       = base64encode(var.jwt_secret)
+    grafana_password_b64 = base64encode(var.grafana_admin_password)
+    gcp_key_b64          = google_service_account_key.backup.private_key
+    gcp_backup_bucket    = google_storage_bucket.bucket_gcp_backup.name
+  })
+
+  depends_on = [google_storage_bucket_iam_member.backup_writer]
+}
+
+resource "aws_instance" "vm_backup" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = var.tipo_instancia_backup_aws
+  key_name               = var.aws_key_name
+  subnet_id              = aws_subnet.subnet_backup.id
+  vpc_security_group_ids = [aws_security_group.sg_ecommerce.id]
+  tags                   = { Name = "vm-backup-ecommerce" }
+}
 
   # Disco principal de 25GB (Free Tier permite hasta 30GB)
   root_block_device {
@@ -224,10 +247,53 @@ resource "aws_s3_object" "subir_fotos_s3" {
 # INFRAESTRUCTURA EN GCP (NUBE DE RESPALDO)
 # ============================================
 
+resource "google_project_service" "required" {
+  for_each = toset([
+    "compute.googleapis.com",
+    "iam.googleapis.com",
+    "storage.googleapis.com",
+  ])
+
+  service            = each.value
+  disable_on_destroy = false
+}
+
 resource "google_storage_bucket" "bucket_gcp_backup" {
   name          = "ecommerce-monolitico-gcp-${var.sufijo_equipo}"
   location      = "US"
   force_destroy = true
+
+  versioning {
+    enabled = true
+  }
+
+  lifecycle_rule {
+    condition {
+      age = 30
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_service_account" "backup" {
+  account_id   = "ecommerce-backup"
+  display_name = "Ecommerce Kubernetes backup"
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_storage_bucket_iam_member" "backup_writer" {
+  bucket = google_storage_bucket.bucket_gcp_backup.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.backup.email}"
+}
+
+resource "google_service_account_key" "backup" {
+  service_account_id = google_service_account.backup.name
 }
 
 resource "google_compute_instance" "vm_contingencia_gcp" {
@@ -269,7 +335,7 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
                             git clone https://github.com/pabloallendes2310/ecommerce-monolitico.git /home/ubuntu/ecommerce
                             cd /home/ubuntu/ecommerce
 
-                            # 5. Obtener IP publica de GCP y crear variables dinámicas
+                            # 5. Obtener IP publica de GCP y crear variables dinÃ¡micas
                             PUBLIC_IP=$(curl -s -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip)
 
                             cat <<EOT > .env
@@ -280,6 +346,7 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
                             BACKEND_PORT=3000
                             VITE_API_URL=http://$PUBLIC_IP:3000
                             JWT_SECRET=${var.jwt_secret}
+                            GRAFANA_ADMIN_PASSWORD=${var.grafana_admin_password}
                             EOT
                             
                             # 6. Levantar aplicaciones y monitoreo
@@ -292,6 +359,8 @@ resource "google_compute_instance" "vm_contingencia_gcp" {
   , "\r", "")
 
   tags = ["http-server", "https-server", "backend-api"]
+
+  depends_on = [google_project_service.required]
 }
 
 resource "google_compute_firewall" "allow_http" {

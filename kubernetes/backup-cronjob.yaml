@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup-gcp
+  namespace: ecommerce
+spec:
+  schedule: "0 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          initContainers:
+            - name: pg-dump
+              image: postgres:15-alpine
+              command:
+                - sh
+                - -c
+                - pg_dump -h postgres -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > /backup/ecommerce.sql.gz
+              envFrom:
+                - configMapRef:
+                    name: ecommerce-config
+              env:
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: ecommerce-secrets
+                      key: POSTGRES_PASSWORD
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+          containers:
+            - name: upload-gcp
+              image: google/cloud-sdk:slim
+              command:
+                - sh
+                - -c
+                - >-
+                  gcloud auth activate-service-account --key-file=/var/secrets/google/key.json &&
+                  gcloud storage cp /backup/ecommerce.sql.gz
+                  gs://$GCP_BACKUP_BUCKET/postgres/ecommerce-$(date -u +%Y%m%d-%H%M%S).sql.gz
+              envFrom:
+                - configMapRef:
+                    name: backup-config
+              volumeMounts:
+                - name: backup
+                  mountPath: /backup
+                - name: gcp-key
+                  mountPath: /var/secrets/google
+                  readOnly: true
+          volumes:
+            - name: backup
+              emptyDir: {}
+            - name: gcp-key
+              secret:
+                secretName: gcp-backup-credentials
+

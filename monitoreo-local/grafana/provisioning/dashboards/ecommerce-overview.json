@@ -116,8 +116,8 @@
       },
       "targets": [
         {
-          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"ecommerce-.*\"}[5m]))",
-          "legendFormat": "{{name}}",
+          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"ecommerce-.*\"}[5m])) or sum by (container_label_io_kubernetes_pod_name) (rate(container_cpu_usage_seconds_total{container_label_io_kubernetes_pod_namespace=\"ecommerce\"}[5m]))",
+          "legendFormat": "{{name}} {{container_label_io_kubernetes_pod_name}}",
           "refId": "A"
         }
       ],
@@ -155,8 +155,8 @@
       },
       "targets": [
         {
-          "expr": "container_memory_usage_bytes{name=~\"ecommerce-.*\"}",
-          "legendFormat": "{{name}}",
+          "expr": "container_memory_usage_bytes{name=~\"ecommerce-.*\"} or sum by (container_label_io_kubernetes_pod_name) (container_memory_usage_bytes{container_label_io_kubernetes_pod_namespace=\"ecommerce\"})",
+          "legendFormat": "{{name}} {{container_label_io_kubernetes_pod_name}}",
           "refId": "A"
         }
       ],

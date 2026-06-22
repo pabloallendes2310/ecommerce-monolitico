@@ -25,7 +25,20 @@ variable "sufijo_equipo" {
 variable "tipo_instancia_aws" {
   description = "Tipo de máquina en AWS compatible con Free Tier moderno"
   type        = string
+  default     = "t3.medium"
+}
+
+variable "tipo_instancia_backup_aws" {
+  description = "Tipo de maquina para la VM auxiliar de backup"
+  type        = string
   default     = "t3.micro"
+}
+
+variable "aws_key_name" {
+  description = "Nombre opcional de una key pair existente para acceder por SSH"
+  type        = string
+  default     = null
+  nullable    = true
 }
 
 variable "db_password" {
@@ -36,4 +49,10 @@ variable "db_password" {
 variable "jwt_secret" {
   type      = string
   sensitive = true
+}
+
+variable "grafana_admin_password" {
+  description = "Password del usuario admin de Grafana"
+  type        = string
+  sensitive   = true
 }
